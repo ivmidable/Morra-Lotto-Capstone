@@ -1,4 +1,7 @@
 use anchor_lang::prelude::*;
+use anchor_lang::{
+    system_program::{self, Transfer},
+};
 
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
@@ -7,7 +10,6 @@ pub const LAMPORTS_PER_SOL: u64 = 1_000_000_000;
 
 #[program]
 pub mod morra_lotto {
-    use crate::instruction::{BuyTicket, RevealMoves};
 
     use super::*;
 
@@ -29,21 +31,33 @@ pub mod morra_lotto {
     }
 
     pub fn buy_ticket(ctx: Context<BuyTicket>, hash: [u8;32] ) -> Result<()> {
+
         // pass in hash of hand and sum. (have to save in state)
-// ref vault code
 
-        Ok(())
+    let game_state = &mut ctx.accounts.game_state;
+
+    game_state.ticket_price = 1 * LAMPORTS_PER_SOL;
+
+    let accounts = Transfer {
+    from: ctx.accounts.buyer.to_account_info(),
+    to: ctx.accounts.vault.to_account_info(),
+    };
+
+    let context =
+    CpiContext::<Transfer>::new(ctx.accounts.system_program.to_account_info(), accounts);
+    system_program::transfer(context, game_state.ticket_price)
+
     }
 
-    pub fn reveal_moves(ctx: Context<RevealMoves>) -> Result<()> {
+    // pub fn reveal_moves(ctx: Context<RevealMoves>) -> Result<()> {
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
-    pub fn claim(ctx: Context<Claim>) -> Result<()> {
+    // pub fn claim(ctx: Context<Claim>) -> Result<()> {
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
 
 }
@@ -61,11 +75,10 @@ pub struct Initialize <'info> {
     pub vault: SystemAccount<'info>,
     #[account(
         init,
-        seeds = [b"lotto".as_ref(), buyer.key().as_ref()],
+        seeds = [b"state".as_ref(), buyer.key().as_ref()],
         bump,
         payer = buyer,
-        //count new space
-        space = 8 + 32 + 4 + 4 + 4 + 32 + 8 + 8 + 32,
+        space = 8 + 8 + 8 + 8 + 1 + 1,
     )]
     pub game_state: Account<'info, GameState>,
     pub system_program: Program<'info, System>,
@@ -82,6 +95,7 @@ pub struct BuyTicket <'info> {
     pub vault_auth:  UncheckedAccount<'info,>,
     #[account(mut, seeds = [b"vault", vault_auth.key().as_ref()], bump)]
     pub vault: SystemAccount<'info>,
+    pub game_state: Account<'info, GameState>,
     pub system_program: Program<'info, System>,
 }
 
