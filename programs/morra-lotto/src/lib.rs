@@ -2,6 +2,7 @@ use anchor_lang::prelude::*;
 use anchor_lang::{
     system_program::{self, Transfer},
 };
+use solana_program::blake3::hash;
 
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
@@ -33,6 +34,11 @@ pub mod morra_lotto {
     pub fn buy_ticket(ctx: Context<BuyTicket>, hash: [u8;32] ) -> Result<()> {
 
         // pass in hash of hand and sum. (have to save in state)
+
+    let hashed = &mut ctx.accounts.ticket_state;
+
+    hashed.hash_players_inputs(player_move, player_guess);
+
 
     let game_state = &mut ctx.accounts.game_state;
 
@@ -95,6 +101,8 @@ pub struct BuyTicket <'info> {
     pub vault_auth:  UncheckedAccount<'info,>,
     #[account(mut, seeds = [b"vault", vault_auth.key().as_ref()], bump)]
     pub vault: SystemAccount<'info>,
+    #[account(mut, seeds = [b"ticket", buyer.key().as_ref()], bump)]
+    pub ticket_state: Account<'info, TicketInfo>,
     pub game_state: Account<'info, GameState>,
     pub system_program: Program<'info, System>,
 }
@@ -111,6 +119,20 @@ pub struct TicketInfo {
     player: Pubkey,
     player_move: u8,
     guess_sum: u8,
+}
+
+impl TicketInfo {
+    pub fn hash_players_inputs(&self, player_move: u8, player_guess: u32) {
+        // players move
+         let mut to_hash = player_move.to_le_bytes().to_vec();
+        // players guess of the sum
+        to_hash.extend_from_slice(player_guess.to_le_bytes().as_ref());
+
+        to_hash.extend_from_slice(b"secret");
+
+        hash(to_hash.as_slice());
+
+    }
 }
 
 #[account]
